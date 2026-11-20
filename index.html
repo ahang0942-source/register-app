@@ -59,10 +59,15 @@
   #receiptArea{display:none}
   @media print{
     header,nav,main,.overlay{display:none !important}
-    #receiptArea{display:block !important;width:72mm;margin:0 auto;font-family:monospace;font-size:12px;line-height:1.6;color:#000}
+    #receiptArea{display:block !important;width:58mm;margin:0 auto;font-family:monospace;font-size:12px;line-height:1.6;color:#000}
     #receiptArea pre{white-space:pre-wrap;font-family:monospace;margin:0}
     #receiptArea img{display:block;margin:0 auto 6px;max-width:40mm;max-height:20mm}
     #receiptPreview img{display:block;margin:0 auto 6px;max-width:160px;max-height:80px}
+    .receipt-paper{background:#fff;color:#111;width:min(300px,84vw);margin:0 auto;padding:20px 16px 28px;box-shadow:0 10px 28px rgba(0,0,0,.28);clip-path:polygon(0 0,100% 0,100% calc(100% - 6px),96% 100%,92% calc(100% - 6px),88% 100%,84% calc(100% - 6px),80% 100%,76% calc(100% - 6px),72% 100%,68% calc(100% - 6px),64% 100%,60% calc(100% - 6px),56% 100%,52% calc(100% - 6px),48% 100%,44% calc(100% - 6px),40% 100%,36% calc(100% - 6px),32% 100%,28% calc(100% - 6px),24% 100%,20% calc(100% - 6px),16% 100%,12% calc(100% - 6px),8% 100%,4% calc(100% - 6px),0 100%)}
+    .receipt-paper pre{font-family:'Courier New',monospace;font-size:12.5px;line-height:1.55;white-space:pre-wrap;margin:0;color:#111}
+    .receipt-paper img{display:block;margin:0 auto 8px;max-width:150px;max-height:74px}
+    .receipt-paper canvas.barcode{display:block;margin:8px auto 0;width:180px;height:42px}
+    #receiptArea canvas.barcode{display:block;margin:6px auto 0;width:38mm;height:10mm}
   }
 </style>
 </head>
@@ -183,7 +188,7 @@
 </main>
 <div id="receiptArea"></div>
 
-<div class="overlay" id="receiptView" style="z-index:120"><div class="box" style="text-align:left"><div id="receiptPreview" style="font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;text-align:left;max-height:55vh;overflow:auto"></div><button class="btn primary" id="receiptDoPrint" style="margin-top:14px">共有・印刷する</button><p class="muted" style="margin-top:8px">ホーム画面のアプリからは直接印刷が開かないため、共有画面が出たら「プリント」を選んでください。Safariで開いている時は印刷画面が開きます。</p><button class="btn" id="receiptClose" style="width:100%;margin-top:8px;padding:14px">閉じる</button></div></div>
+<div class="overlay" id="receiptView" style="z-index:120"><div class="box" style="text-align:left"><div id="receiptPreview" style="max-height:58vh;overflow:auto;padding:6px 0 2px"></div><button class="btn primary" id="receiptDoPrint" style="margin-top:14px">共有・印刷する</button><p class="muted" style="margin-top:8px">ホーム画面のアプリからは直接印刷が開かないため、共有画面が出たら「プリント」を選んでください。Safariで開いている時は印刷画面が開きます。</p><button class="btn" id="receiptClose" style="width:100%;margin-top:8px;padding:14px">閉じる</button></div></div>
 <div class="overlay" id="confirmBox"><div class="box"><p style="font-weight:800;font-size:17px;margin:0 0 8px" id="confirmMsg"></p><p class="muted" id="confirmSub"></p><button class="btn danger" id="confirmYes" style="width:100%;padding:14px;font-size:16px">確定する</button><button class="btn" id="confirmNo" style="width:100%;margin-top:8px;padding:14px">キャンセル</button></div></div>
 <div class="overlay" id="done"><div class="box"><p style="font-weight:800;font-size:18px;margin:0">会計が完了しました</p><p class="muted" id="doneTotal"></p><p class="muted" id="doneTax"></p><p class="muted" id="doneInvoice"></p><p class="muted">お釣り</p><p class="big" id="doneChange">¥0</p><button class="btn" id="printReceiptBtn" style="width:100%;margin-bottom:8px;padding:14px">レシートを印刷する（必要な人だけ）</button><button class="btn primary" id="nextCustomer">次のお客さんへ</button></div></div>
 
@@ -415,20 +420,36 @@ loadSettingsUI();
 
 let lastSale=null;
 function buildReceipt(sale){
+  const eq='================================';
   const line='--------------------------------';
-  let t='';
-  if(sale.storeName)t+=sale.storeName+'\n';
-  t+='領収書（レシート）\n'+sale.date+' '+sale.time+'\n'+line+'\n';
-  sale.items.forEach(i=>{t+=i.name+'\n  '+yen(i.price)+' × '+i.qty+' = '+yen(i.price*i.qty)+'（税'+i.tax+'%）\n'});
+  let t=eq+'\n';
+  if(sale.storeName)t+='        '+sale.storeName+'\n';
+  t+='           領 収 書\n';
+  t+=sale.date+' '+sale.time+'\n';
+  t+='取引No. '+String(sale.id).slice(-6)+'\n'+eq+'\n';
+  let count=0,has8=false;
+  sale.items.forEach(i=>{count+=i.qty;if(i.tax===8)has8=true;t+=i.name+(i.tax===8?' ※':'')+'\n  '+yen(i.price)+' × '+i.qty+'        '+yen(i.price*i.qty)+'\n'});
   t+=line+'\n';
-  t+='合計（税込） '+yen(sale.total)+'\n';
-  t+='うち消費税 '+yen(sale.taxTotal!=null?sale.taxTotal:(sale.breakdown[10].tax+sale.breakdown[8].tax))+'\n';
+  t+='点数 '+count+'点\n';
+  t+=line+'\n';
+  t+='合　計        '+yen(sale.total)+'\n';
+  t+='（うち消費税 '+yen(sale.taxTotal!=null?sale.taxTotal:(sale.breakdown[10].tax+sale.breakdown[8].tax))+'）\n';
   t+='10%対象 '+yen(sale.breakdown[10].total)+'（税 '+yen(sale.breakdown[10].tax)+'）\n';
-  t+='8%対象 '+yen(sale.breakdown[8].total)+'（税 '+yen(sale.breakdown[8].tax)+'）\n';
-  t+='お預かり '+yen(sale.tendered)+'\nお釣り '+yen(sale.change)+'\n';
+  t+='8%対象  '+yen(sale.breakdown[8].total)+'（税 '+yen(sale.breakdown[8].tax)+'）\n';
+  if(has8)t+='※は軽減税率対象です\n';
+  t+=line+'\n';
+  t+='お預かり      '+yen(sale.tendered)+'\nお釣り        '+yen(sale.change)+'\n';
   if(sale.invoiceNumber)t+=line+'\n登録番号 '+sale.invoiceNumber+'\n';
-  t+=line+'\nありがとうございました。';
+  t+=eq+'\n     ありがとうございました。';
   return t;
+}
+function barcodeSeed(sale){return String(sale.id)+':'+sale.total+':'+sale.date}
+function drawBarcode(canvas,seed){
+  const ctx=canvas.getContext('2d');const W=canvas.width,H=canvas.height;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#111';
+  let h=0;for(const ch of seed)h=(h*31+ch.charCodeAt(0))>>>0;
+  let x=4;
+  while(x<W-6){h=(h*1103515245+12345)>>>0;const w=1+((h>>>8)%4);if((h>>>16)%2===0)ctx.fillRect(x,2,w,H-4);x+=w+1+((h>>>24)%2)}
 }
 function printSale(sale){
   if(!sale){showInfo('印刷できる会計がありません。');return}
@@ -436,9 +457,13 @@ function printSale(sale){
   const area=document.getElementById('receiptArea');area.innerHTML='';
   if(logo){const img=document.createElement('img');img.src=logo;img.alt='';area.appendChild(img)}
   const pre=document.createElement('pre');pre.textContent=buildReceipt(sale);area.appendChild(pre);
+  const bc0=document.createElement('canvas');bc0.width=360;bc0.height=64;bc0.className='barcode';drawBarcode(bc0,barcodeSeed(sale));area.appendChild(bc0);
   const prev=document.getElementById('receiptPreview');prev.innerHTML='';
-  if(logo){const img2=document.createElement('img');img2.src=logo;img2.alt='';prev.appendChild(img2)}
-  const txt=document.createElement('span');txt.textContent=buildReceipt(sale);prev.appendChild(txt);
+  const paper=document.createElement('div');paper.className='receipt-paper';
+  if(logo){const img2=document.createElement('img');img2.src=logo;img2.alt='';paper.appendChild(img2)}
+  const pre2=document.createElement('pre');pre2.textContent=buildReceipt(sale);paper.appendChild(pre2);
+  const bc=document.createElement('canvas');bc.width=360;bc.height=84;bc.className='barcode';drawBarcode(bc,barcodeSeed(sale));paper.appendChild(bc);
+  prev.appendChild(paper);
   window._receiptSale=sale;
   document.getElementById('receiptView').classList.add('open');
 }
@@ -449,7 +474,7 @@ document.getElementById('receiptDoPrint').onclick=async()=>{
   // standalone: build a receipt image and open the share sheet (which has Print)
   try{
     const text=buildReceipt(sale);
-    const W=620,PAD=28,FONT='24px monospace',LH=38;
+    const W=560,PAD=28,FONT='23px monospace',LH=37;
     const meas=document.createElement('canvas').getContext('2d');meas.font=FONT;
     const lines=[];
     text.split('\n').forEach(src=>{
@@ -460,11 +485,21 @@ document.getElementById('receiptDoPrint').onclick=async()=>{
     const logo=(state.settings&&state.settings.logo)||'';
     let logoImg=null,logoH=0;
     if(logo){logoImg=new Image();await new Promise(res=>{logoImg.onload=res;logoImg.onerror=res;logoImg.src=logo});if(logoImg.width){const sc=Math.min(220/logoImg.width,110/logoImg.height,1);logoImg._w=logoImg.width*sc;logoImg._h=logoImg.height*sc;logoH=logoImg._h+14}}
-    const canvas=document.createElement('canvas');canvas.width=W;canvas.height=Math.ceil(PAD*2+logoH+lines.length*LH);
+    const BARH=96,ZZ=14;
+    const canvas=document.createElement('canvas');canvas.width=W;canvas.height=Math.ceil(PAD*2+logoH+lines.length*LH+BARH+ZZ);
     const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#000';ctx.font=FONT;ctx.textBaseline='top';
     let y=PAD;
     if(logoImg&&logoImg._w){ctx.drawImage(logoImg,(W-logoImg._w)/2,y,logoImg._w,logoImg._h);y+=logoH}
-    lines.forEach(ln=>{ctx.fillText(ln,PAD,y);y+=LH});
+    let header=true;
+    lines.forEach(ln=>{ if(ln.startsWith('='))header=false; if(header){const w=ctx.measureText(ln).width;ctx.fillText(ln,(W-w)/2,y)}else{ctx.fillText(ln,PAD,y)} y+=LH });
+    // barcode
+    const bc=document.createElement('canvas');bc.width=360;bc.height=64;drawBarcode(bc,barcodeSeed(sale));
+    ctx.drawImage(bc,(W-300)/2,y+6,300,54); y+=BARH;
+    ctx.font='18px monospace';ctx.fillStyle='#000';const digits=String(sale.id).slice(-10);const dw=ctx.measureText(digits).width;ctx.fillText(digits,(W-dw)/2,y-26);
+    // zigzag bottom edge
+    ctx.globalCompositeOperation='destination-out';
+    const step=20;for(let x=0;x<W;x+=step){ctx.beginPath();ctx.moveTo(x,canvas.height);ctx.lineTo(x+step/2,canvas.height-ZZ);ctx.lineTo(x+step,canvas.height);ctx.closePath();ctx.fill()}
+    ctx.globalCompositeOperation='source-over';
     const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
     const file=new File([blob],'receipt.png',{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]})}
