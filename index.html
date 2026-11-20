@@ -443,26 +443,16 @@ function buildReceipt(sale){
   t+=eq+'\n     ありがとうございました。';
   return t;
 }
-function barcodeSeed(sale){return String(sale.id)+':'+sale.total+':'+sale.date}
-function drawBarcode(canvas,seed){
-  const ctx=canvas.getContext('2d');const W=canvas.width,H=canvas.height;
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#111';
-  let h=0;for(const ch of seed)h=(h*31+ch.charCodeAt(0))>>>0;
-  let x=4;
-  while(x<W-6){h=(h*1103515245+12345)>>>0;const w=1+((h>>>8)%4);if((h>>>16)%2===0)ctx.fillRect(x,2,w,H-4);x+=w+1+((h>>>24)%2)}
-}
 function printSale(sale){
   if(!sale){showInfo('印刷できる会計がありません。');return}
   const logo=(state.settings&&state.settings.logo)||'';
   const area=document.getElementById('receiptArea');area.innerHTML='';
   if(logo){const img=document.createElement('img');img.src=logo;img.alt='';area.appendChild(img)}
   const pre=document.createElement('pre');pre.textContent=buildReceipt(sale);area.appendChild(pre);
-  const bc0=document.createElement('canvas');bc0.width=360;bc0.height=64;bc0.className='barcode';drawBarcode(bc0,barcodeSeed(sale));area.appendChild(bc0);
   const prev=document.getElementById('receiptPreview');prev.innerHTML='';
   const paper=document.createElement('div');paper.className='receipt-paper';
   if(logo){const img2=document.createElement('img');img2.src=logo;img2.alt='';paper.appendChild(img2)}
   const pre2=document.createElement('pre');pre2.textContent=buildReceipt(sale);paper.appendChild(pre2);
-  const bc=document.createElement('canvas');bc.width=360;bc.height=84;bc.className='barcode';drawBarcode(bc,barcodeSeed(sale));paper.appendChild(bc);
   prev.appendChild(paper);
   window._receiptSale=sale;
   document.getElementById('receiptView').classList.add('open');
@@ -485,17 +475,13 @@ document.getElementById('receiptDoPrint').onclick=async()=>{
     const logo=(state.settings&&state.settings.logo)||'';
     let logoImg=null,logoH=0;
     if(logo){logoImg=new Image();await new Promise(res=>{logoImg.onload=res;logoImg.onerror=res;logoImg.src=logo});if(logoImg.width){const sc=Math.min(220/logoImg.width,110/logoImg.height,1);logoImg._w=logoImg.width*sc;logoImg._h=logoImg.height*sc;logoH=logoImg._h+14}}
-    const BARH=96,ZZ=14;
-    const canvas=document.createElement('canvas');canvas.width=W;canvas.height=Math.ceil(PAD*2+logoH+lines.length*LH+BARH+ZZ);
+    const ZZ=14;
+    const canvas=document.createElement('canvas');canvas.width=W;canvas.height=Math.ceil(PAD*2+logoH+lines.length*LH+ZZ);
     const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#000';ctx.font=FONT;ctx.textBaseline='top';
     let y=PAD;
     if(logoImg&&logoImg._w){ctx.drawImage(logoImg,(W-logoImg._w)/2,y,logoImg._w,logoImg._h);y+=logoH}
     let header=true;
     lines.forEach(ln=>{ if(ln.startsWith('='))header=false; if(header){const w=ctx.measureText(ln).width;ctx.fillText(ln,(W-w)/2,y)}else{ctx.fillText(ln,PAD,y)} y+=LH });
-    // barcode
-    const bc=document.createElement('canvas');bc.width=360;bc.height=64;drawBarcode(bc,barcodeSeed(sale));
-    ctx.drawImage(bc,(W-300)/2,y+6,300,54); y+=BARH;
-    ctx.font='18px monospace';ctx.fillStyle='#000';const digits=String(sale.id).slice(-10);const dw=ctx.measureText(digits).width;ctx.fillText(digits,(W-dw)/2,y-26);
     // zigzag bottom edge
     ctx.globalCompositeOperation='destination-out';
     const step=20;for(let x=0;x<W;x+=step){ctx.beginPath();ctx.moveTo(x,canvas.height);ctx.lineTo(x+step/2,canvas.height-ZZ);ctx.lineTo(x+step,canvas.height);ctx.closePath();ctx.fill()}
