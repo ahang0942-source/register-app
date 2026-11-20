@@ -183,7 +183,7 @@
 </main>
 <div id="receiptArea"></div>
 
-<div class="overlay" id="receiptView" style="z-index:120"><div class="box" style="text-align:left"><div id="receiptPreview" style="font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;text-align:left;max-height:55vh;overflow:auto"></div><button class="btn primary" id="receiptDoPrint" style="margin-top:14px">印刷する</button><button class="btn" id="receiptClose" style="width:100%;margin-top:8px;padding:14px">閉じる</button></div></div>
+<div class="overlay" id="receiptView" style="z-index:120"><div class="box" style="text-align:left"><div id="receiptPreview" style="font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;text-align:left;max-height:55vh;overflow:auto"></div><button class="btn primary" id="receiptDoPrint" style="margin-top:14px">共有・印刷する</button><p class="muted" style="margin-top:8px">ホーム画面のアプリからは直接印刷が開かないため、共有画面が出たら「プリント」を選んでください。Safariで開いている時は印刷画面が開きます。</p><button class="btn" id="receiptClose" style="width:100%;margin-top:8px;padding:14px">閉じる</button></div></div>
 <div class="overlay" id="confirmBox"><div class="box"><p style="font-weight:800;font-size:17px;margin:0 0 8px" id="confirmMsg"></p><p class="muted" id="confirmSub"></p><button class="btn danger" id="confirmYes" style="width:100%;padding:14px;font-size:16px">確定する</button><button class="btn" id="confirmNo" style="width:100%;margin-top:8px;padding:14px">キャンセル</button></div></div>
 <div class="overlay" id="done"><div class="box"><p style="font-weight:800;font-size:18px;margin:0">会計が完了しました</p><p class="muted" id="doneTotal"></p><p class="muted" id="doneTax"></p><p class="muted" id="doneInvoice"></p><p class="muted">お釣り</p><p class="big" id="doneChange">¥0</p><button class="btn" id="printReceiptBtn" style="width:100%;margin-bottom:8px;padding:14px">レシートを印刷する（必要な人だけ）</button><button class="btn primary" id="nextCustomer">次のお客さんへ</button></div></div>
 
@@ -442,7 +442,36 @@ function printSale(sale){
   window._receiptSale=sale;
   document.getElementById('receiptView').classList.add('open');
 }
-document.getElementById('receiptDoPrint').onclick=()=>{try{window.print()}catch(e){}};
+document.getElementById('receiptDoPrint').onclick=async()=>{
+  const sale=window._receiptSale; if(!sale)return;
+  const standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+  if(!standalone){try{window.print();return}catch(e){}}
+  // standalone: build a receipt image and open the share sheet (which has Print)
+  try{
+    const text=buildReceipt(sale);
+    const W=620,PAD=28,FONT='24px monospace',LH=38;
+    const meas=document.createElement('canvas').getContext('2d');meas.font=FONT;
+    const lines=[];
+    text.split('\n').forEach(src=>{
+      let cur='';
+      for(const ch of src){ if(meas.measureText(cur+ch).width>W-PAD*2){lines.push(cur);cur=ch}else{cur+=ch} }
+      lines.push(cur);
+    });
+    const logo=(state.settings&&state.settings.logo)||'';
+    let logoImg=null,logoH=0;
+    if(logo){logoImg=new Image();await new Promise(res=>{logoImg.onload=res;logoImg.onerror=res;logoImg.src=logo});if(logoImg.width){const sc=Math.min(220/logoImg.width,110/logoImg.height,1);logoImg._w=logoImg.width*sc;logoImg._h=logoImg.height*sc;logoH=logoImg._h+14}}
+    const canvas=document.createElement('canvas');canvas.width=W;canvas.height=Math.ceil(PAD*2+logoH+lines.length*LH);
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#000';ctx.font=FONT;ctx.textBaseline='top';
+    let y=PAD;
+    if(logoImg&&logoImg._w){ctx.drawImage(logoImg,(W-logoImg._w)/2,y,logoImg._w,logoImg._h);y+=logoH}
+    lines.forEach(ln=>{ctx.fillText(ln,PAD,y);y+=LH});
+    const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const file=new File([blob],'receipt.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]})}
+    else if(navigator.share){await navigator.share({text:text})}
+    else{showInfo('この環境では共有も印刷も開けませんでした。Safariで開いて試してください。')}
+  }catch(e){ if(e&&e.name!=='AbortError'){ try{window.print()}catch(err){} } }
+};
 document.getElementById('receiptClose').onclick=()=>document.getElementById('receiptView').classList.remove('open');
 document.getElementById('printReceiptBtn').onclick=()=>printSale(lastSale);
 
