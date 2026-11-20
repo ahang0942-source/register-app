@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e6fd9">
+<title>かんたんレジ（試作）</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;background:#f4f5f7;color:#14201d}
+  header{background:#1e6fd9;color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5}
+  header h1{margin:0;font-size:20px} header p{margin:4px 0 0;font-size:12px;opacity:.9}
+  nav{display:flex;gap:8px;padding:10px 12px;background:#e8eef5;position:sticky;top:64px;z-index:4}
+  nav button{flex:1;padding:11px 4px;border:0;border-radius:10px;background:#fff;font-size:15px;font-weight:700;color:#3d4f63}
+  nav button.active{background:#1e6fd9;color:#fff}
+  main{padding:12px;max-width:900px;margin:0 auto} section{display:none} section.active{display:block}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
+  .product{border:0;border-radius:14px;background:#fff;padding:16px 12px;text-align:left;box-shadow:0 1px 4px rgba(0,0,0,.08);min-height:88px}
+  .product:active{transform:scale(.98)} .product .name{font-size:17px;font-weight:800;display:block}
+  .product .price{font-size:15px;color:#1e6fd9;font-weight:800;display:block;margin-top:6px}
+  .badge{font-size:11px;background:#eef2f1;border-radius:99px;padding:2px 7px;color:#52635f}
+  .card{background:#fff;border-radius:14px;padding:14px;margin-top:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  .card h2{margin:0 0 10px;font-size:17px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #edf1f0}
+  .row:last-child{border-bottom:0}
+  .qty{display:flex;align-items:center;gap:8px} .qty button{width:34px;height:34px;border-radius:50%;border:1px solid #cbd8d5;background:#fff;font-size:18px;font-weight:800}
+  .total{font-size:28px;font-weight:900;text-align:right}
+  .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+  .quick button,.btn{border:0;border-radius:10px;padding:12px 8px;font-size:15px;font-weight:800;background:#e8eef5;color:#173a5e}
+  .btn.primary{background:#1e6fd9;color:#fff;width:100%;padding:16px;font-size:18px}
+  .btn.danger{background:#fee2e2;color:#991b1b} .btn:disabled{opacity:.4}
+  input,select{width:100%;padding:12px;border:1px solid #cbd8d5;border-radius:10px;font-size:16px;background:#fff}
+  label{font-size:13px;font-weight:700;display:block;margin:10px 0 5px}
+  .change{font-size:22px;font-weight:900;color:#1e6fd9;text-align:right}
+  .muted{color:#667873;font-size:13px} .empty{color:#7a8a86;text-align:center;padding:18px 0}
+  .sale{border-bottom:1px solid #edf1f0;padding:10px 0}.sale:last-child{border-bottom:0}.voided{opacity:.45;text-decoration:line-through}
+  .summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}.summary div{background:#f2f6fa;border-radius:10px;padding:10px}
+  .summary b{font-size:19px;display:block}
+  .overlay{position:fixed;inset:0;background:rgba(10,20,30,.48);display:none;align-items:center;justify-content:center;z-index:99;padding:16px}
+  .overlay.open{display:flex}
+  .overlay .box{background:#fff;border-radius:16px;padding:24px 22px;width:min(92vw,420px);text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+  .overlay .big{font-size:32px;font-weight:900;color:#1e6fd9;margin:6px 0 14px}
+  .bar-row{display:grid;grid-template-columns:86px 1fr 86px;gap:8px;align-items:center;padding:6px 0;font-size:13px}
+  .bar-track{background:#e5ebf2;border-radius:99px;height:14px;overflow:hidden}
+  .bar-fill{background:#1e6fd9;height:100%;border-radius:99px;min-width:2px}
+  .periods{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .periods button{border:0;border-radius:10px;padding:11px 4px;font-weight:800;background:#e8eef5;color:#173a5e}
+  .periods button.active{background:#1e6fd9;color:#fff}
+
+  .reg-layout{display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:860px){.reg-layout{grid-template-columns:1fr 380px;gap:12px;align-items:start}.reg-cart{position:sticky;top:126px}}
+  .cats{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px}
+  .cats button{flex:0 0 auto;border:0;border-radius:99px;padding:10px 16px;font-size:14px;font-weight:800;background:#fff;color:#3d4f63;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .cats button.active{background:#1e6fd9;color:#fff}
+  .tiles .product{min-height:108px;border-radius:10px;border-bottom:5px solid rgba(0,0,0,.12)}
+  .tiles .product .name{font-size:16px}
+  .c-blue{background:#dbeafe}.c-green{background:#dcfce7}.c-orange{background:#ffedd5}.c-pink{background:#fce7f3}.c-purple{background:#ede9fe}.c-gray{background:#e5e7eb}
+
+  #receiptArea{display:none}
+  @media print{
+    header,nav,main,.overlay{display:none !important}
+    #receiptArea{display:block !important;width:72mm;margin:0 auto;font-family:monospace;font-size:12px;line-height:1.6;color:#000}
+    #receiptArea pre{white-space:pre-wrap;font-family:monospace;margin:0}
+    #receiptArea img{display:block;margin:0 auto 6px;max-width:40mm;max-height:20mm}
+    #receiptPreview img{display:block;margin:0 auto 6px;max-width:160px;max-height:80px}
+  }
+</style>
+</head>
+<body>
+<header><h1>かんたんレジ（試作）</h1><p>現金専用 ・ 記録はこの端末の中だけに保存されます</p></header>
+<nav>
+  <button data-tab="register" class="active">レジ</button>
+  <button data-tab="history">履歴・集計</button>
+  <button data-tab="analytics">分析</button>
+  <button data-tab="products">商品</button>
+</nav>
+<main>
+  <section id="register" class="active">
+    <div class="reg-layout">
+    <div class="reg-left"><div class="cats" id="categoryBar"></div><div class="grid tiles" id="productGrid"></div></div>
+    <div class="card reg-cart">
+      <h2>会計内容</h2>
+      <div id="cartList"></div>
+      <div class="row"><span id="baseLabel">本体価格</span><span id="baseTotal">¥0</span></div><div class="row"><span>消費税</span><span id="taxTotal">¥0</span></div><div class="row"><span>合計（税込）</span><span class="total" id="total">¥0</span></div>
+      <label for="tendered">預かり金（空欄なら「ちょうど」扱い）</label>
+      <input id="tendered" type="number" inputmode="numeric" min="0" placeholder="例：1000">
+      <div class="quick">
+        <button data-money="exact">ちょうど</button><button data-money="1000">¥1,000</button><button data-money="5000">¥5,000</button>
+        <button data-money="10000">¥10,000</button><button data-money="clear">クリア</button>
+      </div>
+      <div class="row"><span>お釣り</span><span class="change" id="change">¥0</span></div>
+      <p class="muted" id="taxNote"></p>
+      <button class="btn primary" id="checkout" disabled>会計を確定する</button>
+      <button class="btn" id="clearCart" style="width:100%;margin-top:8px">会計内容をすべて消す</button>
+    </div>
+    </div>
+  </section>
+
+  <section id="history">
+    <div class="card">
+      <h2>集計</h2>
+      <label for="datePick">日付</label>
+      <input id="datePick" type="date">
+      <div class="summary" style="margin-top:12px">
+        <div><span class="muted">売上合計</span><b id="sumTotal">¥0</b></div>
+        <div><span class="muted">会計件数</span><b id="sumCount">0件</b></div>
+        <div><span class="muted">10%対象（内税）</span><b id="sum10">¥0（税 ¥0）</b></div>
+        <div><span class="muted">8%対象（内税）</span><b id="sum8">¥0（税 ¥0）</b></div>
+      </div>
+      <button class="btn" id="csv" style="width:100%;margin-top:12px">この日の売上をCSVで書き出す</button>
+    </div>
+    <div class="card"><h2>売上履歴</h2><div id="saleList"></div></div>
+  </section>
+
+  <section id="analytics">
+    <div class="card">
+      <h2>分析する期間</h2>
+      <div class="periods" id="periods">
+        <button data-period="today" class="active">今日</button>
+        <button data-period="7">過去7日</button>
+        <button data-period="30">過去30日</button>
+        <button data-period="month">今月</button>
+        <button data-period="year">今年（年間）</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        <div><label for="anaStart" style="margin-top:0">開始日</label><input id="anaStart" type="date"></div>
+        <div><label for="anaEnd" style="margin-top:0">終了日</label><input id="anaEnd" type="date"></div>
+      </div>
+      <button class="btn" id="anaCustomBtn" style="width:100%;margin-top:10px">この期間で分析する</button>
+      <p class="muted" id="anaRange"></p>
+      <div class="summary">
+        <div><span class="muted">売上合計</span><b id="anaTotal">¥0</b></div>
+        <div><span class="muted">会計件数</span><b id="anaCount">0件</b></div>
+        <div><span class="muted">客単価（1会計あたり）</span><b id="anaAvg">¥0</b></div>
+        <div><span class="muted">1会計あたり点数</span><b id="anaItems">0点</b></div>
+        <div><span class="muted">売れた点数</span><b id="anaQty">0点</b></div>
+        <div><span class="muted">取り消した会計</span><b id="anaVoid">0件</b></div>
+      </div>
+    </div>
+    <div class="card"><h2 id="anaDailyTitle">日別の売上</h2><div id="anaDaily"></div></div>
+    <div class="card"><h2>商品ランキング（売上順）</h2><div id="anaRanking"></div></div>
+    <div class="card"><h2>時間帯別の売上</h2><div id="anaHourly"></div></div>
+    <div class="card"><h2>税率別の内訳</h2><div id="anaTax"></div></div>
+  </section>
+
+  <section id="products">
+    <div class="card">
+      <h2>お店・税の設定</h2>
+      <label for="setStoreName">店舗名（任意）</label><input id="setStoreName" placeholder="例：○○商店">
+      <label for="setPriceMode">価格の税の扱い</label>
+      <select id="setPriceMode"><option value="in">税込（内税）― 入力した価格がそのまま合計</option><option value="out">税抜（外税）― 入力した価格に消費税を上乗せ</option></select>
+      <label for="setInvoice">インボイス登録番号（任意）</label><input id="setInvoice" placeholder="例：T1234567890123" autocapitalize="characters">
+      <p class="muted">登録番号は「T＋数字13桁」です。会計完了画面とCSVに表示されます。</p>
+      <label for="setLogo">お店のロゴ（レシート用）</label>
+      <input id="setLogo" type="file" accept="image/*">
+      <div style="text-align:center;margin-top:8px"><img id="logoPreview" alt="" style="max-width:180px;max-height:90px;display:none"></div>
+      <button class="btn danger" id="removeLogo" style="width:100%;margin-top:8px;display:none">ロゴを削除する</button>
+      <p class="muted">ロゴは自動で小さくして端末内に保存され、レシートの先頭に印刷されます。</p>
+      <button class="btn primary" id="saveSettings" style="margin-top:6px">設定を保存する</button>
+    </div>
+    <div class="card">
+      <h2>商品の追加・編集</h2>
+      <p class="muted">試作では仮の商品が入っています。実際の商品名と税込価格に書き換えてください。</p>
+      <input type="hidden" id="editId">
+      <label for="pName">商品名</label><input id="pName" placeholder="例：コーヒー">
+      <label for="pPrice" id="pPriceLabel">価格（円）</label><input id="pPrice" type="number" inputmode="numeric" min="1" placeholder="例：500">
+      <label for="pTax">税率</label>
+      <select id="pTax"><option value="10">10%</option><option value="8">8%（軽減税率）</option></select>
+      <label for="pCategory">カテゴリ</label><input id="pCategory" placeholder="例：ドリンク">
+      <label for="pColor">ボタンの色</label><select id="pColor"><option value="blue">青</option><option value="green">緑</option><option value="orange">オレンジ</option><option value="pink">ピンク</option><option value="purple">紫</option><option value="gray">グレー</option></select>
+      <button class="btn primary" id="saveProduct" style="margin-top:14px">保存する</button>
+      <button class="btn" id="cancelEdit" style="width:100%;margin-top:8px;display:none">編集をやめる</button>
+    </div>
+    <div class="card"><h2>登録済みの商品</h2><div id="productList"></div></div>
+    <div class="card"><h2>データ（バックアップ・復元）</h2>
+      <p class="muted">商品・売上・設定（ロゴ含む）を1つのファイルに書き出せます。機種変更や故障の前に保存しておいてください。</p>
+      <button class="btn primary" id="backupExport">全データをファイルに書き出す</button>
+      <label for="restoreFile">バックアップから復元する</label>
+      <input id="restoreFile" type="file" accept=".json,application/json">
+      <p class="muted">復元すると今のデータはバックアップの内容で上書きされます（確認画面が出ます）。</p>
+      <button class="btn danger" id="resetAll" style="width:100%;margin-top:10px">商品と売上をすべて消す</button></div>
+  </section>
+</main>
+<div id="receiptArea"></div>
+
+<div class="overlay" id="receiptView" style="z-index:120"><div class="box" style="text-align:left"><div id="receiptPreview" style="font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;text-align:left;max-height:55vh;overflow:auto"></div><button class="btn primary" id="receiptDoPrint" style="margin-top:14px">印刷する</button><button class="btn" id="receiptClose" style="width:100%;margin-top:8px;padding:14px">閉じる</button></div></div>
+<div class="overlay" id="confirmBox"><div class="box"><p style="font-weight:800;font-size:17px;margin:0 0 8px" id="confirmMsg"></p><p class="muted" id="confirmSub"></p><button class="btn danger" id="confirmYes" style="width:100%;padding:14px;font-size:16px">確定する</button><button class="btn" id="confirmNo" style="width:100%;margin-top:8px;padding:14px">キャンセル</button></div></div>
+<div class="overlay" id="done"><div class="box"><p style="font-weight:800;font-size:18px;margin:0">会計が完了しました</p><p class="muted" id="doneTotal"></p><p class="muted" id="doneTax"></p><p class="muted" id="doneInvoice"></p><p class="muted">お釣り</p><p class="big" id="doneChange">¥0</p><button class="btn" id="printReceiptBtn" style="width:100%;margin-bottom:8px;padding:14px">レシートを印刷する（必要な人だけ）</button><button class="btn primary" id="nextCustomer">次のお客さんへ</button></div></div>
+
+<script>
+const KEY='simple-cash-register-prototype-v1';
+const yen=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
+const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+let state=load();
+let cart={};
+let activeCategory='すべて';
+const PALETTE=['blue','green','orange','pink','purple','gray'];
+function defaults(){return {products:[
+ {id:'p1',name:'商品A（仮）',price:500,tax:10,category:'メイン',color:'blue'},{id:'p2',name:'商品B（仮）',price:800,tax:10,category:'メイン',color:'green'},
+ {id:'p3',name:'商品C（仮）',price:300,tax:8,category:'メイン',color:'orange'},{id:'p4',name:'商品D（仮）',price:1000,tax:10,category:'メイン',color:'pink'}],sales:[],settings:{priceMode:'in',invoiceNumber:'',storeName:'',logo:''}}}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.products&&s.sales){s.products.forEach((x,i)=>{x.category=x.category||'メイン';x.color=x.color||PALETTE[i%PALETTE.length]});s.settings=Object.assign({priceMode:'in',invoiceNumber:'',storeName:'',logo:''},s.settings||{});return s}}catch(e){} return defaults()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){/* storage unavailable: keep running in memory */}}
+function priceMode(){return (state.settings&&state.settings.priceMode)||'in'}
+function computeTotals(items){const mode=priceMode();const b={10:{total:0,tax:0,base:0},8:{total:0,tax:0,base:0}};items.forEach(i=>{b[i.tax].base+=i.price*i.qty});[10,8].forEach(r=>{if(mode==='out'){b[r].tax=Math.floor(b[r].base*r/100);b[r].total=b[r].base+b[r].tax}else{b[r].total=b[r].base;b[r].tax=Math.floor(b[r].total*r/(100+r));b[r].base=b[r].total-b[r].tax}});const total=b[10].total+b[8].total,taxTotal=b[10].tax+b[8].tax,baseTotal=b[10].base+b[8].base;return {breakdown:b,total,taxTotal,baseTotal,mode}}
+function taxBreakdown(items){return computeTotals(items).breakdown}
+function cartItems(){return Object.values(cart).map(q=>{const p=state.products.find(x=>x.id===q.id);return p?{id:p.id,name:p.name,price:p.price,tax:p.tax,qty:q.qty}:null}).filter(Boolean)}
+function cartTotal(){return computeTotals(cartItems()).total}
+function renderProducts(){
+ const cats=['すべて',...new Set(state.products.map(p=>p.category||'メイン'))];
+ if(!cats.includes(activeCategory))activeCategory='すべて';
+ const bar=document.getElementById('categoryBar');bar.innerHTML='';
+ cats.forEach(c=>{const b=document.createElement('button');b.textContent=c;if(c===activeCategory)b.className='active';b.onclick=()=>{activeCategory=c;renderProducts()};bar.appendChild(b)});
+ const shown=state.products.filter(p=>activeCategory==='すべて'||(p.category||'メイン')===activeCategory);
+ const g=document.getElementById('productGrid');g.innerHTML=shown.length?'':'<p class="empty">このカテゴリの商品がありません。</p>';
+ shown.forEach(p=>{const b=document.createElement('button');b.className='product tile c-'+(p.color||'blue');b.innerHTML='<span class="name"></span><span class="price"></span> <span class="badge">税'+p.tax+'%</span>';b.querySelector('.name').textContent=p.name;b.querySelector('.price').textContent=yen(p.price);b.onclick=()=>{cart[p.id]=cart[p.id]||{id:p.id,qty:0};cart[p.id].qty++;renderCart()};g.appendChild(b)});
+ const l=document.getElementById('productList');l.innerHTML=state.products.length?'':'<p class="empty">商品がありません。</p>';
+ state.products.forEach(p=>{const r=document.createElement('div');r.className='row';r.innerHTML='<div><b></b><br><span class="muted">'+yen(p.price)+' ・ 税'+p.tax+'% ・ '+(p.category||'メイン')+'</span></div>';r.querySelector('b').textContent=p.name;const e=document.createElement('button');e.className='btn';e.textContent='編集';e.onclick=()=>editProduct(p);const d=document.createElement('button');d.className='btn danger';d.textContent='削除';d.onclick=()=>{askConfirm('「'+p.name+'」を消しますか？','','消す',()=>{state.products=state.products.filter(x=>x.id!==p.id);delete cart[p.id];save();renderProducts();renderCart()})};const w=document.createElement('div');w.style.display='flex';w.style.gap='6px';w.append(e,d);r.appendChild(w);l.appendChild(r)});
+}
+function renderCart(){
+ const items=cartItems(),list=document.getElementById('cartList');list.innerHTML=items.length?'':'<p class="empty">商品ボタンを押してください。</p>';
+ items.forEach(i=>{const r=document.createElement('div');r.className='row';const left=document.createElement('div');left.innerHTML='<b></b><br><span class="muted">'+yen(i.price)+' × '+i.qty+'</span>';left.querySelector('b').textContent=i.name;const q=document.createElement('div');q.className='qty';const minus=document.createElement('button');minus.textContent='−';minus.onclick=()=>{cart[i.id].qty--;if(cart[i.id].qty<=0)delete cart[i.id];renderCart()};const amt=document.createElement('b');amt.textContent=yen(i.price*i.qty);const plus=document.createElement('button');plus.textContent='＋';plus.onclick=()=>{cart[i.id].qty++;renderCart()};q.append(minus,amt,plus);r.append(left,q);list.appendChild(r)});
+ const t=computeTotals(items),total=t.total;
+ document.getElementById('baseLabel').textContent=t.mode==='out'?'小計（税抜）':'本体価格（税抜換算）';
+ document.getElementById('baseTotal').textContent=yen(t.baseTotal);
+ document.getElementById('taxTotal').textContent=yen(t.taxTotal);
+ document.getElementById('total').textContent=yen(total);
+ const tenderRaw=document.getElementById('tendered').value;const tender=tenderRaw===''?total:Number(tenderRaw);const change=Math.max(0,tender-total);
+ document.getElementById('change').textContent=yen(change);
+ document.getElementById('taxNote').textContent=items.length?('税率別：10%対象 '+yen(t.breakdown[10].total)+'（税 '+yen(t.breakdown[10].tax)+'）／ 8%対象 '+yen(t.breakdown[8].total)+'（税 '+yen(t.breakdown[8].tax)+'）'+(t.mode==='out'?' ・ 外税方式':'')):'';
+ document.getElementById('checkout').disabled=!items.length||tender<total;
+}
+function renderHistory(){
+ const date=document.getElementById('datePick').value||todayStr();const sales=state.sales.filter(s=>s.date===date);const valid=sales.filter(s=>!s.voided);
+ const totals={total:0,count:valid.length,10:{total:0,tax:0},8:{total:0,tax:0}};valid.forEach(s=>{totals.total+=s.total;[10,8].forEach(r=>{totals[r].total+=s.breakdown[r].total;totals[r].tax+=s.breakdown[r].tax})});
+ document.getElementById('sumTotal').textContent=yen(totals.total);document.getElementById('sumCount').textContent=totals.count+'件';
+ document.getElementById('sum10').textContent=yen(totals[10].total)+'（税 '+yen(totals[10].tax)+'）';document.getElementById('sum8').textContent=yen(totals[8].total)+'（税 '+yen(totals[8].tax)+'）';
+ const list=document.getElementById('saleList');list.innerHTML=sales.length?'':'<p class="empty">この日の売上はありません。</p>';
+ [...sales].reverse().forEach(s=>{const d=document.createElement('div');d.className='sale'+(s.voided?' voided':'');const title=document.createElement('div');title.innerHTML='<b>'+s.time+' ・ '+yen(s.total)+'</b><br><span class="muted"></span>';title.querySelector('.muted').textContent=s.items.map(i=>i.name+' ×'+i.qty).join('、')+(s.voided?'（取消済み）':'');d.appendChild(title);if(!s.voided){const v=document.createElement('button');v.className='btn danger';v.textContent='この会計を消す';v.style.marginTop='8px';v.onclick=()=>{askConfirm('この会計を消しますか？','消すと集計からも外れ、元に戻せません。','消す',()=>{state.sales=state.sales.filter(x=>x.id!==s.id);save();renderHistory();try{renderAnalytics()}catch(e){}})};d.appendChild(v);const rp=document.createElement('button');rp.className='btn';rp.textContent='レシートを印刷';rp.style.marginTop='8px';rp.style.marginLeft='8px';rp.onclick=()=>printSale(s);d.appendChild(rp)}list.appendChild(d)});
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));document.getElementById(b.dataset.tab).classList.add('active');if(b.dataset.tab==='history')renderHistory();if(b.dataset.tab==='analytics')renderAnalytics()});
+document.getElementById('tendered').addEventListener('input',renderCart);
+document.querySelectorAll('[data-money]').forEach(b=>b.onclick=()=>{const v=b.dataset.money;const input=document.getElementById('tendered');if(v==='exact')input.value=cartTotal();else if(v==='clear')input.value='';else input.value=v;renderCart()});
+document.getElementById('clearCart').onclick=()=>{cart={};document.getElementById('tendered').value='';renderCart()};
+document.getElementById('checkout').onclick=()=>{const items=cartItems(),ct=computeTotals(items),total=ct.total,tenderRaw=document.getElementById('tendered').value;const tender=tenderRaw===''?total:Number(tenderRaw);const now=new Date();const sale={id:Date.now().toString(),date:todayStr(),time:String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),items,total,breakdown:ct.breakdown,taxTotal:ct.taxTotal,baseTotal:ct.baseTotal,priceMode:ct.mode,invoiceNumber:(state.settings&&state.settings.invoiceNumber)||'',storeName:(state.settings&&state.settings.storeName)||'',tendered:tender,change:tender-total,voided:false};state.sales.push(sale);lastSale=sale;save();cart={};document.getElementById('tendered').value='';renderCart();document.getElementById('total').textContent=yen(0);document.getElementById('change').textContent=yen(0);try{renderHistory()}catch(e){}document.getElementById('doneTotal').textContent='合計 '+yen(sale.total)+' の会計を記録しました';document.getElementById('doneTax').textContent='消費税 '+yen(sale.taxTotal)+'（10%対象 '+yen(sale.breakdown[10].total)+'・税 '+yen(sale.breakdown[10].tax)+' ／ 8%対象 '+yen(sale.breakdown[8].total)+'・税 '+yen(sale.breakdown[8].tax)+'）';document.getElementById('doneInvoice').textContent=(sale.storeName?sale.storeName+'　':'')+(sale.invoiceNumber?'登録番号 '+sale.invoiceNumber:'');document.getElementById('doneChange').textContent=yen(sale.change);document.getElementById('done').classList.add('open')};
+document.getElementById('nextCustomer').onclick=()=>document.getElementById('done').classList.remove('open');
+document.getElementById('datePick').value=todayStr();document.getElementById('datePick').addEventListener('change',renderHistory);
+document.getElementById('csv').onclick=()=>{const date=document.getElementById('datePick').value||todayStr();const rows=[['日付','時刻','会計ID','商品名','単価','税率','数量','小計','会計合計（税込）','消費税合計','価格方式','インボイス登録番号','預かり金','お釣り','状態']];state.sales.filter(s=>s.date===date).forEach(s=>s.items.forEach(i=>rows.push([s.date,s.time,s.id,i.name,i.price,i.tax+'%',i.qty,i.price*i.qty,s.total,(s.taxTotal!=null?s.taxTotal:''),(s.priceMode==='out'?'外税（税抜）':'内税（税込）'),(s.invoiceNumber||''),s.tendered,s.change,s.voided?'取消':'有効'])));const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='sales-'+date+'.csv';a.click();URL.revokeObjectURL(a.href)};
+function editProduct(p){document.getElementById('editId').value=p.id;document.getElementById('pName').value=p.name;document.getElementById('pPrice').value=p.price;document.getElementById('pTax').value=String(p.tax);document.getElementById('pCategory').value=p.category||'メイン';document.getElementById('pColor').value=p.color||'blue';document.getElementById('cancelEdit').style.display='block';window.scrollTo({top:0,behavior:'smooth'})}
+document.getElementById('cancelEdit').onclick=()=>{document.getElementById('editId').value='';document.getElementById('pName').value='';document.getElementById('pPrice').value='';document.getElementById('cancelEdit').style.display='none'};
+document.getElementById('saveProduct').onclick=()=>{const name=document.getElementById('pName').value.trim(),price=Number(document.getElementById('pPrice').value),tax=Number(document.getElementById('pTax').value),id=document.getElementById('editId').value,category=document.getElementById('pCategory').value.trim()||'メイン',color=document.getElementById('pColor').value;if(!name||!price||price<1){showInfo('商品名と1円以上の価格を入れてください。');return}if(id){const p=state.products.find(x=>x.id===id);Object.assign(p,{name,price,tax,category,color})}else{state.products.push({id:'p'+Date.now(),name,price,tax,category,color})}save();document.getElementById('cancelEdit').onclick();renderProducts();renderCart();showInfo('保存しました。')};
+document.getElementById('resetAll').onclick=()=>{askConfirm('商品と売上をすべて消しますか？','元に戻せません。','すべて消す',()=>{state=defaults();state.products=[];state.sales=[];cart={};save();
+let anaPeriod='today';
+let anaCustom=null;
+function dateOf(str){const[a,b,c]=str.split('-').map(Number);return new Date(a,b-1,c)}
+function fmtDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function anaRangeDates(){
+  const now=new Date();const end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  let start=new Date(end);
+  if(anaPeriod==='7')start.setDate(start.getDate()-6);
+  else if(anaPeriod==='30')start.setDate(start.getDate()-29);
+  else if(anaPeriod==='month')start=new Date(now.getFullYear(),now.getMonth(),1);
+  else if(anaPeriod==='year')start=new Date(now.getFullYear(),0,1);
+  if(anaPeriod==='custom'&&anaCustom)return {start:anaCustom.start,end:anaCustom.end};
+  return {start,end};
+}
+function barRow(label,value,max,display){
+  const pct=(max>0&&value>0)?Math.max(2,Math.round(value/max*100)):0;
+  return '<div class="bar-row"><span>'+label+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><b>'+display+'</b></div>';
+}
+function renderAnalytics(){
+  const {start,end}=anaRangeDates();
+  document.getElementById('anaRange').textContent=fmtDate(start)+' 〜 '+fmtDate(end)+'（取り消した会計は除く）';
+  const inRange=s=>{const d=dateOf(s.date);return d>=start&&d<=end};
+  const all=state.sales.filter(inRange);
+  const sales=all.filter(s=>!s.voided);
+  const total=sales.reduce((a,s)=>a+s.total,0);
+  const qty=sales.reduce((a,s)=>a+s.items.reduce((x,i)=>x+i.qty,0),0);
+  document.getElementById('anaTotal').textContent=yen(total);
+  document.getElementById('anaCount').textContent=sales.length+'件';
+  document.getElementById('anaAvg').textContent=yen(sales.length?total/sales.length:0);
+  document.getElementById('anaItems').textContent=(sales.length?(qty/sales.length).toFixed(1):'0')+'点';
+  document.getElementById('anaQty').textContent=qty+'点';
+  document.getElementById('anaVoid').textContent=all.filter(s=>s.voided).length+'件';
+  // daily
+  const spanDays=Math.round((end-start)/86400000)+1;
+  const byMonth=anaPeriod==='year'||spanDays>62;
+  document.getElementById('anaDailyTitle').textContent=byMonth?'月別の売上':'日別の売上';
+  if(byMonth){
+    const monthly=[];{let cur=new Date(start.getFullYear(),start.getMonth(),1);const last=new Date(end.getFullYear(),end.getMonth(),1);while(cur<=last){const key=cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0');const ms=sales.filter(x=>x.date.startsWith(key));monthly.push({label:cur.getFullYear()+'年'+(cur.getMonth()+1)+'月',total:ms.reduce((a,x)=>a+x.total,0),count:ms.length});cur.setMonth(cur.getMonth()+1)}}
+    const mmax=Math.max(0,...monthly.map(x=>x.total));
+    document.getElementById('anaDaily').innerHTML=mmax>0?monthly.map(x=>barRow(x.label,x.total,mmax,yen(x.total))).join('')+'<p class="muted">'+monthly.map(x=>x.label+'：'+x.count+'件').join(' ／ ')+'</p>':'<p class="empty">この期間の売上はまだありません。</p>';
+  }else{
+    const days=[];for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1))days.push(fmtDate(d));
+    const daily=days.map(day=>({day,total:sales.filter(s=>s.date===day).reduce((a,s)=>a+s.total,0)}));
+    const dmax=Math.max(0,...daily.map(x=>x.total));
+    document.getElementById('anaDaily').innerHTML=daily.length&&dmax>0?daily.map(x=>barRow(x.day.slice(5),x.total,dmax,yen(x.total))).join(''):'<p class="empty">この期間の売上はまだありません。</p>';
+  }
+  // ranking
+  const agg={};sales.forEach(s=>s.items.forEach(i=>{agg[i.name]=agg[i.name]||{name:i.name,qty:0,amount:0};agg[i.name].qty+=i.qty;agg[i.name].amount+=i.price*i.qty}));
+  const rank=Object.values(agg).sort((a,b)=>b.amount-a.amount);
+  const rmax=rank.length?rank[0].amount:0;
+  document.getElementById('anaRanking').innerHTML=rank.length?rank.map((x,idx)=>barRow((idx+1)+'. '+x.name,x.amount,rmax,yen(x.amount))).join('')+'<p class="muted">'+rank.map(x=>x.name+'：'+x.qty+'点（'+(total?Math.round(x.amount/total*100):0)+'%）').join(' ／ ')+'</p>':'<p class="empty">商品の売上はまだありません。</p>';
+  // hourly
+  const hours={};sales.forEach(s=>{const h=s.time.slice(0,2);hours[h]=hours[h]||{total:0,count:0};hours[h].total+=s.total;hours[h].count++});
+  const hlist=Object.keys(hours).sort();const hmax=Math.max(0,...hlist.map(h=>hours[h].total));
+  document.getElementById('anaHourly').innerHTML=hlist.length?hlist.map(h=>barRow(h+'時台',hours[h].total,hmax,yen(hours[h].total))).join('')+'<p class="muted">'+hlist.map(h=>h+'時台：'+hours[h].count+'件').join(' ／ ')+'</p>':'<p class="empty">時間帯のデータはまだありません。</p>';
+  // tax
+  const b={10:{total:0,tax:0},8:{total:0,tax:0}};sales.forEach(s=>{[10,8].forEach(r=>{b[r].total+=s.breakdown[r].total;b[r].tax+=s.breakdown[r].tax})});
+  document.getElementById('anaTax').innerHTML='<div class="row"><span>10%対象</span><b>'+yen(b[10].total)+'（内税 '+yen(b[10].tax)+'）</b></div><div class="row"><span>8%対象</span><b>'+yen(b[8].total)+'（内税 '+yen(b[8].tax)+'）</b></div>';
+}
+document.querySelectorAll('#periods button').forEach(b=>b.onclick=()=>{anaPeriod=b.dataset.period;document.querySelectorAll('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderAnalytics()});
+(function(){const now=new Date();document.getElementById('anaStart').value=fmtDate(new Date(now.getFullYear(),now.getMonth(),1));document.getElementById('anaEnd').value=fmtDate(now);})();
+document.getElementById('anaCustomBtn').onclick=()=>{
+  const sv=document.getElementById('anaStart').value,ev=document.getElementById('anaEnd').value;
+  if(!sv||!ev){showInfo('開始日と終了日を選んでください。');return}
+  const st=dateOf(sv),en=dateOf(ev);
+  if(st>en){showInfo('開始日が終了日より後になっています。');return}
+  anaCustom={start:st,end:en};anaPeriod='custom';
+  document.querySelectorAll('#periods button').forEach(x=>x.classList.remove('active'));
+  renderAnalytics();
+};
+renderProducts();renderCart();renderHistory();renderAnalytics();showInfo('消しました。商品タブから商品を追加してください。');})};
+
+let anaPeriod='today';
+function dateOf(str){const[a,b,c]=str.split('-').map(Number);return new Date(a,b-1,c)}
+function fmtDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function anaRangeDates(){
+  const now=new Date();const end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  let start=new Date(end);
+  if(anaPeriod==='7')start.setDate(start.getDate()-6);
+  else if(anaPeriod==='30')start.setDate(start.getDate()-29);
+  else if(anaPeriod==='month')start=new Date(now.getFullYear(),now.getMonth(),1);
+  else if(anaPeriod==='year')start=new Date(now.getFullYear(),0,1);
+  return {start,end};
+}
+function barRow(label,value,max,display){
+  const pct=(max>0&&value>0)?Math.max(2,Math.round(value/max*100)):0;
+  return '<div class="bar-row"><span>'+label+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><b>'+display+'</b></div>';
+}
+function renderAnalytics(){
+  const {start,end}=anaRangeDates();
+  document.getElementById('anaRange').textContent=fmtDate(start)+' 〜 '+fmtDate(end)+'（取り消した会計は除く）';
+  const inRange=s=>{const d=dateOf(s.date);return d>=start&&d<=end};
+  const all=state.sales.filter(inRange);
+  const sales=all.filter(s=>!s.voided);
+  const total=sales.reduce((a,s)=>a+s.total,0);
+  const qty=sales.reduce((a,s)=>a+s.items.reduce((x,i)=>x+i.qty,0),0);
+  document.getElementById('anaTotal').textContent=yen(total);
+  document.getElementById('anaCount').textContent=sales.length+'件';
+  document.getElementById('anaAvg').textContent=yen(sales.length?total/sales.length:0);
+  document.getElementById('anaItems').textContent=(sales.length?(qty/sales.length).toFixed(1):'0')+'点';
+  document.getElementById('anaQty').textContent=qty+'点';
+  document.getElementById('anaVoid').textContent=all.filter(s=>s.voided).length+'件';
+  // daily
+  const spanDays=Math.round((end-start)/86400000)+1;
+  const byMonth=anaPeriod==='year'||spanDays>62;
+  document.getElementById('anaDailyTitle').textContent=byMonth?'月別の売上':'日別の売上';
+  if(byMonth){
+    const monthly=[];{let cur=new Date(start.getFullYear(),start.getMonth(),1);const last=new Date(end.getFullYear(),end.getMonth(),1);while(cur<=last){const key=cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0');const ms=sales.filter(x=>x.date.startsWith(key));monthly.push({label:cur.getFullYear()+'年'+(cur.getMonth()+1)+'月',total:ms.reduce((a,x)=>a+x.total,0),count:ms.length});cur.setMonth(cur.getMonth()+1)}}
+    const mmax=Math.max(0,...monthly.map(x=>x.total));
+    document.getElementById('anaDaily').innerHTML=mmax>0?monthly.map(x=>barRow(x.label,x.total,mmax,yen(x.total))).join('')+'<p class="muted">'+monthly.map(x=>x.label+'：'+x.count+'件').join(' ／ ')+'</p>':'<p class="empty">この期間の売上はまだありません。</p>';
+  }else{
+    const days=[];for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1))days.push(fmtDate(d));
+    const daily=days.map(day=>({day,total:sales.filter(s=>s.date===day).reduce((a,s)=>a+s.total,0)}));
+    const dmax=Math.max(0,...daily.map(x=>x.total));
+    document.getElementById('anaDaily').innerHTML=daily.length&&dmax>0?daily.map(x=>barRow(x.day.slice(5),x.total,dmax,yen(x.total))).join(''):'<p class="empty">この期間の売上はまだありません。</p>';
+  }
+  // ranking
+  const agg={};sales.forEach(s=>s.items.forEach(i=>{agg[i.name]=agg[i.name]||{name:i.name,qty:0,amount:0};agg[i.name].qty+=i.qty;agg[i.name].amount+=i.price*i.qty}));
+  const rank=Object.values(agg).sort((a,b)=>b.amount-a.amount);
+  const rmax=rank.length?rank[0].amount:0;
+  document.getElementById('anaRanking').innerHTML=rank.length?rank.map((x,idx)=>barRow((idx+1)+'. '+x.name,x.amount,rmax,yen(x.amount))).join('')+'<p class="muted">'+rank.map(x=>x.name+'：'+x.qty+'点（'+(total?Math.round(x.amount/total*100):0)+'%）').join(' ／ ')+'</p>':'<p class="empty">商品の売上はまだありません。</p>';
+  // hourly
+  const hours={};sales.forEach(s=>{const h=s.time.slice(0,2);hours[h]=hours[h]||{total:0,count:0};hours[h].total+=s.total;hours[h].count++});
+  const hlist=Object.keys(hours).sort();const hmax=Math.max(0,...hlist.map(h=>hours[h].total));
+  document.getElementById('anaHourly').innerHTML=hlist.length?hlist.map(h=>barRow(h+'時台',hours[h].total,hmax,yen(hours[h].total))).join('')+'<p class="muted">'+hlist.map(h=>h+'時台：'+hours[h].count+'件').join(' ／ ')+'</p>':'<p class="empty">時間帯のデータはまだありません。</p>';
+  // tax
+  const b={10:{total:0,tax:0},8:{total:0,tax:0}};sales.forEach(s=>{[10,8].forEach(r=>{b[r].total+=s.breakdown[r].total;b[r].tax+=s.breakdown[r].tax})});
+  document.getElementById('anaTax').innerHTML='<div class="row"><span>10%対象</span><b>'+yen(b[10].total)+'（内税 '+yen(b[10].tax)+'）</b></div><div class="row"><span>8%対象</span><b>'+yen(b[8].total)+'（内税 '+yen(b[8].tax)+'）</b></div>';
+}
+document.querySelectorAll('#periods button').forEach(b=>b.onclick=()=>{anaPeriod=b.dataset.period;document.querySelectorAll('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderAnalytics()});
+
+let confirmCb=null;
+function askConfirm(msg,sub,yesLabel,onYes){
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmSub').textContent=sub||'';
+  const yes=document.getElementById('confirmYes');yes.textContent=yesLabel||'確定する';yes.style.display='block';
+  document.getElementById('confirmNo').textContent='キャンセル';
+  confirmCb=onYes;document.getElementById('confirmBox').classList.add('open');
+}
+function showInfo(msg){
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmSub').textContent='';
+  document.getElementById('confirmYes').style.display='none';
+  document.getElementById('confirmNo').textContent='OK';
+  confirmCb=null;document.getElementById('confirmBox').classList.add('open');
+}
+document.getElementById('confirmYes').onclick=()=>{document.getElementById('confirmBox').classList.remove('open');const cb=confirmCb;confirmCb=null;if(cb)cb()};
+document.getElementById('confirmNo').onclick=()=>{document.getElementById('confirmBox').classList.remove('open');confirmCb=null};
+
+function loadSettingsUI(){
+  const st=state.settings||{priceMode:'in',invoiceNumber:'',storeName:'',logo:''};
+  document.getElementById('setStoreName').value=st.storeName||'';
+  document.getElementById('setPriceMode').value=st.priceMode||'in';
+  document.getElementById('setInvoice').value=st.invoiceNumber||'';
+  document.getElementById('pPriceLabel').textContent=st.priceMode==='out'?'税抜価格（円）':'税込価格（円）';
+}
+document.getElementById('saveSettings').onclick=()=>{
+  const inv=document.getElementById('setInvoice').value.trim().toUpperCase();
+  if(inv&&!/^T\d{13}$/.test(inv)){showInfo('登録番号は「T＋数字13桁」で入れてください。例：T1234567890123');return}
+  state.settings={priceMode:document.getElementById('setPriceMode').value,invoiceNumber:inv,storeName:document.getElementById('setStoreName').value.trim(),logo:(state.settings&&state.settings.logo)||''};
+  save();loadSettingsUI();renderCart();showInfo('設定を保存しました。');
+};
+loadSettingsUI();
+
+let lastSale=null;
+function buildReceipt(sale){
+  const line='--------------------------------';
+  let t='';
+  if(sale.storeName)t+=sale.storeName+'\n';
+  t+='領収書（レシート）\n'+sale.date+' '+sale.time+'\n'+line+'\n';
+  sale.items.forEach(i=>{t+=i.name+'\n  '+yen(i.price)+' × '+i.qty+' = '+yen(i.price*i.qty)+'（税'+i.tax+'%）\n'});
+  t+=line+'\n';
+  t+='合計（税込） '+yen(sale.total)+'\n';
+  t+='うち消費税 '+yen(sale.taxTotal!=null?sale.taxTotal:(sale.breakdown[10].tax+sale.breakdown[8].tax))+'\n';
+  t+='10%対象 '+yen(sale.breakdown[10].total)+'（税 '+yen(sale.breakdown[10].tax)+'）\n';
+  t+='8%対象 '+yen(sale.breakdown[8].total)+'（税 '+yen(sale.breakdown[8].tax)+'）\n';
+  t+='お預かり '+yen(sale.tendered)+'\nお釣り '+yen(sale.change)+'\n';
+  if(sale.invoiceNumber)t+=line+'\n登録番号 '+sale.invoiceNumber+'\n';
+  t+=line+'\nありがとうございました。';
+  return t;
+}
+function printSale(sale){
+  if(!sale){showInfo('印刷できる会計がありません。');return}
+  const logo=(state.settings&&state.settings.logo)||'';
+  const area=document.getElementById('receiptArea');area.innerHTML='';
+  if(logo){const img=document.createElement('img');img.src=logo;img.alt='';area.appendChild(img)}
+  const pre=document.createElement('pre');pre.textContent=buildReceipt(sale);area.appendChild(pre);
+  const prev=document.getElementById('receiptPreview');prev.innerHTML='';
+  if(logo){const img2=document.createElement('img');img2.src=logo;img2.alt='';prev.appendChild(img2)}
+  const txt=document.createElement('span');txt.textContent=buildReceipt(sale);prev.appendChild(txt);
+  window._receiptSale=sale;
+  document.getElementById('receiptView').classList.add('open');
+}
+document.getElementById('receiptDoPrint').onclick=()=>{try{window.print()}catch(e){}};
+document.getElementById('receiptClose').onclick=()=>document.getElementById('receiptView').classList.remove('open');
+document.getElementById('printReceiptBtn').onclick=()=>printSale(lastSale);
+
+function showLogoPreview(){
+  const logo=(state.settings&&state.settings.logo)||'';
+  const img=document.getElementById('logoPreview');
+  img.style.display=logo?'inline-block':'none'; if(logo)img.src=logo;
+  document.getElementById('removeLogo').style.display=logo?'block':'none';
+}
+document.getElementById('setLogo').addEventListener('change',e=>{
+  const file=e.target.files&&e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const image=new Image();
+    image.onload=()=>{
+      const maxW=320,scale=Math.min(1,maxW/image.width);
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(image.width*scale));
+      canvas.height=Math.max(1,Math.round(image.height*scale));
+      canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
+      state.settings=state.settings||{priceMode:'in',invoiceNumber:'',storeName:'',logo:''};
+      state.settings.logo=canvas.toDataURL('image/png');
+      save();showLogoPreview();showInfo('ロゴを登録しました。レシートの先頭に印刷されます。');
+    };
+    image.onerror=()=>showInfo('その画像は読み込めませんでした。別の画像で試してください。');
+    image.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById('removeLogo').onclick=()=>{
+  askConfirm('ロゴを消しますか？','','消す',()=>{state.settings.logo='';save();showLogoPreview();document.getElementById('setLogo').value=''});
+};
+showLogoPreview();
+
+document.getElementById('backupExport').onclick=()=>{
+  const data={app:'simple-cash-register',version:1,exportedAt:new Date().toISOString(),products:state.products,sales:state.sales,settings:state.settings};
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='register-backup-'+todayStr()+'.json';a.click();URL.revokeObjectURL(a.href);
+  showInfo('バックアップを書き出しました。ファイルは安全な場所に保管してください。');
+};
+let pendingRestore=null;
+document.getElementById('restoreFile').addEventListener('change',e=>{
+  const file=e.target.files&&e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let data=null;
+    try{data=JSON.parse(reader.result)}catch(err){}
+    if(!data||!Array.isArray(data.products)||!Array.isArray(data.sales)){showInfo('そのファイルは読み込めませんでした。バックアップファイルを選んでください。');e.target.value='';return}
+    pendingRestore=data;
+    askConfirm('バックアップから復元しますか？','商品'+data.products.length+'件・売上'+data.sales.length+'件で、今のデータを上書きします。','復元する',()=>{
+      state={products:data.products,sales:data.sales,settings:Object.assign({priceMode:'in',invoiceNumber:'',storeName:'',logo:''},data.settings||{})};
+      state.products.forEach((x,i)=>{x.category=x.category||'メイン';x.color=x.color||PALETTE[i%PALETTE.length]});
+      cart={};pendingRestore=null;
+      save();loadSettingsUI();showLogoPreview();renderProducts();renderCart();renderHistory();try{renderAnalytics()}catch(err){}
+      showInfo('復元しました。');
+    });
+    e.target.value='';
+  };
+  reader.readAsText(file);
+});
+renderProducts();renderCart();renderHistory();renderAnalytics();
+</script>
+</body>
+</html>
